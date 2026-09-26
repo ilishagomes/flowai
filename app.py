@@ -44,26 +44,16 @@ if "workflow_text" not in st.session_state:
 # Header
 # ---------------------------------------------------------------------------
 st.title("🧭 FlowAI")
-st.caption("AI Workflow Discovery & Adoption Assistant")
-st.write(
-    "Describe a repetitive task you do at work. FlowAI will identify what parts "
-    "of it could be AI-assisted, sketch an implementation plan, estimate the time "
-    "savings, and draft a plan for rolling it out to a team."
-)
+st.caption("Find where AI fits in your workflow")
 
 import os
 if not os.environ.get("ANTHROPIC_API_KEY"):
-    st.info(
-        "Running in **offline demo mode** (no `ANTHROPIC_API_KEY` set). Analysis uses "
-        "simple rule-based heuristics instead of Claude. Set the environment variable "
-        "and rerun for real AI-generated analysis.",
-        icon="⚠️",
-    )
+    st.caption("⚠️ Offline demo mode — set ANTHROPIC_API_KEY for real AI analysis.")
 
 # ---------------------------------------------------------------------------
 # Step 1: Describe workflow
 # ---------------------------------------------------------------------------
-st.subheader("1. Describe your workflow")
+st.subheader("Describe your workflow")
 
 col_input, col_button = st.columns([4, 1])
 with col_input:
@@ -86,28 +76,26 @@ if use_example:
 
 col_a, col_b, col_c = st.columns(3)
 with col_a:
-    runs_per_week = st.number_input("Times per week you do this", min_value=1, max_value=50, value=1)
+    runs_per_week = st.number_input("Times / week", min_value=1, max_value=50, value=1)
 with col_b:
     current_minutes_override = st.number_input(
-        "Current time per run (minutes) - optional override", min_value=0, max_value=600, value=0,
-        help="Leave at 0 to let the analysis estimate this for you.",
+        "Current minutes / run (optional)", min_value=0, max_value=600, value=0,
+        help="Leave at 0 to auto-estimate.",
     )
 with col_c:
-    hourly_rate = st.number_input("Approx. hourly cost ($)", min_value=0, value=40)
+    hourly_rate = st.number_input("Hourly cost ($)", min_value=0, value=40)
 
-analyze_clicked = st.button("🔍 Analyze Workflow", type="primary")
+analyze_clicked = st.button("🔍 Analyze", type="primary")
 
 if analyze_clicked:
     if not workflow_text.strip():
-        st.warning("Please describe a workflow first.")
+        st.warning("Describe a workflow first.")
     else:
         st.session_state.workflow_text = workflow_text
-        with st.spinner("Analyzing your workflow..."):
+        with st.spinner("Analyzing..."):
             analysis = analyze_workflow(workflow_text)
-            if current_minutes_override > 0:
-                analysis["estimated_manual_minutes_per_run"] = current_minutes_override
             st.session_state.analysis = analysis
-        with st.spinner("Drafting an adoption plan..."):
+        with st.spinner("Drafting adoption plan..."):
             st.session_state.adoption = generate_adoption_plan(
                 workflow_text, analysis["opportunity_map"]
             )
@@ -126,7 +114,7 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Step 2: AI Opportunity Map
 # ---------------------------------------------------------------------------
-st.subheader("2. AI Opportunity Map")
+st.subheader("Opportunity map")
 
 potential_rank = {"High": 4, "Medium-High": 3, "Medium": 2, "Low-Medium": 1, "Low": 0}
 potential_color = {
@@ -135,8 +123,8 @@ potential_color = {
 
 for item in analysis["opportunity_map"]:
     badge = potential_color.get(item["automation_potential"], "⚪")
-    with st.expander(f"{badge}  **{item['task']}**  —  {item['category']}  ·  Automation potential: {item['automation_potential']}"):
-        st.markdown(f"**Recommended approach:** {item['recommended_approach']}")
+    with st.expander(f"{badge}  **{item['task']}**  ·  {item['category']}  ·  {item['automation_potential']}"):
+        st.markdown(f"**Approach:** {item['recommended_approach']}")
         st.markdown(f"**Human role:** {item['human_role']}")
 
 st.divider()
@@ -144,7 +132,7 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Step 3: AI-assisted workflow
 # ---------------------------------------------------------------------------
-st.subheader("3. AI-Assisted Workflow")
+st.subheader("AI-assisted workflow")
 
 steps = analysis["workflow_steps"]
 for i, step in enumerate(steps):
@@ -160,10 +148,10 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Step 4: Implementation Plan
 # ---------------------------------------------------------------------------
-st.subheader("4. Implementation Plan")
+st.subheader("Implementation plan")
 
 for i, step in enumerate(analysis["implementation_plan"], start=1):
-    st.markdown(f"**Step {i}: {step['step']}**")
+    st.markdown(f"**{i}. {step['step']}**")
     st.caption(step["detail"])
 
 st.divider()
@@ -171,26 +159,31 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Step 5: Before vs After / Business Impact
 # ---------------------------------------------------------------------------
-st.subheader("5. Before vs. After — Estimated Business Impact")
+st.subheader("Before vs. after")
+
+# The manual-time override applies live, same as runs-per-week and hourly rate,
+# rather than only being baked in at the moment "Analyze Workflow" was clicked.
+effective_manual_minutes = (
+    current_minutes_override if current_minutes_override > 0
+    else analysis["estimated_manual_minutes_per_run"]
+)
 
 impact = estimate_impact(
-    manual_minutes_per_run=analysis["estimated_manual_minutes_per_run"],
+    manual_minutes_per_run=effective_manual_minutes,
     ai_assisted_minutes_per_run=analysis["estimated_ai_assisted_minutes_per_run"],
     runs_per_week=runs_per_week,
     hourly_rate=hourly_rate,
 )
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Current time / run", f"{impact['manual_minutes_per_run']} min")
-col2.metric("AI-assisted time / run", f"{impact['ai_assisted_minutes_per_run']} min",
+col1.metric("Before", f"{impact['manual_minutes_per_run']} min")
+col2.metric("After", f"{impact['ai_assisted_minutes_per_run']} min",
             delta=f"-{impact['minutes_saved_per_run']} min", delta_color="inverse")
-col3.metric("Time reduction", f"{impact['percent_time_reduction']}%")
-col4.metric("Est. hours saved / week", f"{impact['hours_saved_per_week']}")
+col3.metric("Reduction", f"{impact['percent_time_reduction']}%")
+col4.metric("Hrs saved / wk", f"{impact['hours_saved_per_week']}")
 
 st.caption(
-    f"At ~${hourly_rate:.0f}/hr and {impact['runs_per_week']}x/week, that's roughly "
-    f"**{impact['hours_saved_per_year']} hours** and **${impact['dollars_saved_per_year']:,.0f}** "
-    f"per year, per person doing this workflow."
+    f"≈ {impact['hours_saved_per_year']} hrs and ${impact['dollars_saved_per_year']:,.0f} / year, per person."
 )
 
 st.divider()
@@ -198,24 +191,21 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Step 6: Adoption Plan
 # ---------------------------------------------------------------------------
-st.subheader("6. Adoption Plan")
+st.subheader("Adoption plan")
 
 if adoption:
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown(f"**Target users:** {adoption['target_users']}")
-        st.markdown(f"**Training needed:** {adoption['training_needed']}")
-        st.markdown(f"**Pilot plan:** {adoption['pilot_plan']}")
+        st.markdown(f"**Who:** {adoption['target_users']}")
+        st.markdown(f"**Training:** {adoption['training_needed']}")
+        st.markdown(f"**Pilot:** {adoption['pilot_plan']}")
     with c2:
-        st.markdown("**Adoption risks:**")
+        st.markdown("**Risks**")
         for risk in adoption["adoption_risks"]:
             st.markdown(f"- {risk}")
-        st.markdown("**Success metrics:**")
+        st.markdown("**Success metrics**")
         for metric in adoption["success_metrics"]:
             st.markdown(f"- {metric}")
 
 st.divider()
-st.caption(
-    "FlowAI is a decision-support tool, not an autopilot: every workflow it analyzes "
-    "keeps a human review step before anything is sent, filed, or acted on."
-)
+st.caption("AI drafts, a human reviews before anything is sent.")
