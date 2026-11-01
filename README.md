@@ -9,9 +9,6 @@ team to actually adopt it.
 
 Organizations are adopting AI tools without always understanding **which workflows are
 appropriate for AI**, or how to help employees actually adopt them once built.
-Most "AI demo" projects stop at "look, it can summarize text" — they skip the harder,
-more valuable questions: *Should this be automated? What breaks if the AI is wrong?
-How do you get a team to trust and actually use it?*
 
 ## Solution
 
