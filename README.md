@@ -137,8 +137,3 @@ figures; a human-auditable formula does the rest.
 - Add a feedback loop: let users mark whether the AI-assisted estimate was accurate
   after actually trying it, and use that to calibrate future estimates.
 - Support OpenAI as an alternate provider behind the same `llm_client` interface.
-
-## What I Learned
-
-*(Fill this in after you've actually built and used it — that's the part an interviewer
-will ask about.)*
